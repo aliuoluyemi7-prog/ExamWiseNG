@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Question Bank Validator</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#151b23; --panel-raised:#1c2330; --line:#2a3441;
+    --text:#e8ecf1; --muted:#8b96a5; --amber:#d9a441; --amber-dim:#a97f2f;
+    --good:#3fa77c; --bad:#d9534f; --warn:#e0a83e; --info:#4a90d9;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;background:var(--bg);color:var(--text);
+    font-family:'Segoe UI',Roboto,-apple-system,sans-serif;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .wrap{max-width:760px;margin:0 auto;padding:20px 16px 60px;}
+
+  .brand{text-align:center;margin-bottom:22px;}
+  .brand .mark{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:44px;height:44px;border-radius:12px;margin-bottom:10px;
+    background:linear-gradient(145deg,var(--amber),var(--amber-dim));
+    color:#11161d;font-weight:800;font-size:18px;
+  }
+  .brand h1{font-size:19px;margin:0;}
+  .brand p{color:var(--muted);font-size:12.5px;margin:4px 0 0;}
+
+  .panel{
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:16px;margin-bottom:14px;
+  }
+  .panel h2{font-size:13px;margin:0 0 10px;color:var(--amber);
+    text-transform:uppercase;letter-spacing:0.05em;}
+
+  textarea{
+    width:100%;min-height:160px;background:var(--panel-raised);
+    border:1px solid var(--line);border-radius:10px;color:var(--text);
+    font-family:'IBM Plex Mono',monospace;font-size:12.5px;padding:12px;
+    resize:vertical;line-height:1.5;
+  }
+  textarea::placeholder{color:var(--muted);}
+
+  .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;}
+  .field-label{font-size:11.5px;color:var(--muted);text-transform:uppercase;
+    letter-spacing:0.05em;margin-bottom:8px;display:block;font-weight:600;}
+  .field-hint{font-size:11.5px;color:var(--muted);margin:8px 0 0;}
+
+  input[type=file]{
+    width:100%;font-size:12.5px;color:var(--muted);
+    background:var(--panel-raised);border:1px solid var(--line);
+    border-radius:10px;padding:10px;
+  }
+
+  .format-toggle{display:flex;gap:8px;margin-bottom:12px;}
+  .format-btn{
+    flex:1;background:var(--panel-raised);border:1px solid var(--line);
+    color:var(--muted);font-size:12.5px;font-weight:700;padding:10px;border-radius:10px;
+  }
+  .format-btn.active{background:var(--amber);color:#11161d;border-color:var(--amber);}
+
+  button{
+    font-family:inherit;font-size:14px;font-weight:700;border:none;
+    border-radius:10px;padding:13px 18px;cursor:pointer;
+  }
+  .btn-primary{
+    background:linear-gradient(145deg,var(--amber),var(--amber-dim));
+    color:#11161d;width:100%;
+  }
+  .btn-primary:active{background:var(--amber-dim);}
+  .btn-secondary{
+    background:var(--panel-raised);color:var(--text);border:1px solid var(--line);
+    flex:1;min-width:130px;font-size:12.5px;font-weight:600;
+  }
+
+  .quality-box{
+    text-align:center;padding:18px 10px;border-radius:14px;margin-bottom:14px;
+    border:1px solid var(--line);background:var(--panel-raised);
+  }
+  .quality-box .score{font-size:34px;font-weight:800;font-family:'IBM Plex Mono',monospace;}
+  .quality-box .score.good{color:var(--good);}
+  .quality-box .score.mid{color:var(--warn);}
+  .quality-box .score.bad{color:var(--bad);}
+  .quality-box .label{font-size:11px;color:var(--muted);text-transform:uppercase;
+    letter-spacing:0.06em;margin-top:4px;}
+
+  .summary-grid{display:flex;flex-wrap:wrap;gap:10px;}
+  .stat-box{
+    flex:1;min-width:80px;background:var(--panel-raised);
+    border:1px solid var(--line);border-radius:12px;padding:14px 8px;text-align:center;
+  }
+  .stat-box .v{font-size:20px;font-weight:800;font-family:'IBM Plex Mono',monospace;}
+  .stat-box .v.ok{color:var(--good);}
+  .stat-box .v.warn{color:var(--warn);}
+  .stat-box .v.bad{color:var(--bad);}
+  .stat-box .v.info{color:var(--info);}
+  .stat-box .k{font-size:10px;color:var(--muted);margin-top:4px;
+    text-transform:uppercase;letter-spacing:0.04em;}
+
+  .issue-group{border:1px solid var(--line);border-radius:12px;margin-bottom:10px;
+    overflow:hidden;background:var(--panel-raised);}
+  .issue-head{
+    display:flex;justify-content:space-between;align-items:center;gap:8px;
+    padding:13px 14px;cursor:pointer;font-size:13px;font-weight:700;
+  }
+  .issue-head .label-wrap{display:flex;align-items:center;gap:8px;min-width:0;}
+  .sev-dot{width:9px;height:9px;border-radius:50%;flex:none;}
+  .sev-dot.error{background:var(--bad);}
+  .sev-dot.warning{background:var(--warn);}
+  .sev-dot.info{background:var(--info);}
+  .issue-head .count{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:700;
+    padding:2px 9px;border-radius:999px;background:var(--bg);flex:none;
+  }
+  .issue-head .count.zero{color:var(--good);}
+  .issue-head .count.nonzero{color:var(--warn);}
+  .issue-head .caret{color:var(--muted);font-size:11px;transition:transform .15s;flex:none;}
+  .issue-head.open .caret{transform:rotate(90deg);}
+  .issue-body{display:none;padding:0 14px 14px;}
+  .issue-body.open{display:block;}
+  .issue-item{
+    border-top:1px solid var(--line);padding:10px 0;font-size:12.5px;
+  }
+  .issue-item .loc{color:var(--amber);font-weight:700;font-size:11.5px;
+    text-transform:uppercase;letter-spacing:0.03em;margin-bottom:4px;
+    display:flex;align-items:center;gap:6px;}
+  .issue-item .snippet{color:var(--text);margin-bottom:3px;}
+  .issue-item .detail{color:var(--muted);}
+  .issue-desc{font-size:11.5px;color:var(--muted);margin:0 0 10px;}
+
+  .empty-state{color:var(--good);font-size:12.5px;padding:10px 0;}
+  .error-box{
+    background:rgba(217,83,79,0.12);border:1px solid var(--bad);
+    border-radius:10px;padding:12px 14px;font-size:12.5px;color:var(--text);
+    margin-top:12px;white-space:pre-wrap;font-family:'IBM Plex Mono',monospace;
+  }
+  .hidden{display:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="brand">
+    <div class="mark">QV</div>
+    <h1>Question Bank Validator</h1>
+    <p>Catch problems before they reach ExamWiseNG or JSS EduBank</p>
+  </div>
+
+  <div class="panel">
+    <h2>1. Paste or upload questions</h2>
+    <div class="format-toggle">
+      <button type="button" class="format-btn active" id="format-json">JSON</button>
+      <button type="button" class="format-btn" id="format-csv">CSV</button>
+    </div>
+    <span class="field-label" id="input-label">JSON array</span>
+    <textarea id="json-input" placeholder='[{"id":1,"subject":"Economics","topic":"Basic Economic Concepts","question":"...","options":{"A":"...","B":"...","C":"...","D":"..."},"answer":"B","explanation":"...","difficulty":"Easy","tags":"","passage_id":"","passage_text":""}]'></textarea>
+    <p class="field-hint" id="input-hint">Paste the QUESTIONS array (or any array of question objects in this shape). Or upload a file below — it will fill the box above.</p>
+    <input type="file" id="file-input" accept="application/json,.json,.csv,text/csv">
+  </div>
+
+  <div class="panel">
+    <h2>2. Known subjects (optional)</h2>
+    <span class="field-label">Comma-separated subject whitelist</span>
+    <textarea id="subjects-input" style="min-height:60px;">English, Mathematics, Economics, Chemistry, Physics, Biology, Government, Literature-in-English, Geography, Commerce, Accounting, Christian Religious Studies, Islamic Religious Studies, History, Civic Education, Agricultural Science, Further Mathematics, Computer Studies</textarea>
+    <p class="field-hint">Questions with a subject not in this list are flagged as "unknown subject" (a warning, not a hard error — useful for catching typos like "Economic" instead of "Economics").</p>
+  </div>
+
+  <div class="panel">
+    <h2>3. Expected duplicates (optional)</h2>
+    <span class="field-label">Ignore keywords (checked against the "tags" field)</span>
+    <textarea id="ignore-input" style="min-height:50px;">cloze, gap-fill, passage-series</textarea>
+    <p class="field-hint">Near-identical or exact-duplicate questions are downgraded from Warning to Info when either (a) they share the same non-empty passage_id — e.g. a cloze passage series — or (b) both share one of these tag keywords. This keeps intentional repetition (like 8 gap-fill questions on one passage) from cluttering the warnings you actually need to review.</p>
+  </div>
+
+  <button class="btn-primary" id="validate-btn">Run Validation</button>
+
+  <div id="error-output"></div>
+
+  <div id="results" class="hidden">
+
+    <div class="quality-box">
+      <div class="score" id="quality-score">100%</div>
+      <div class="label">Quality Score</div>
+    </div>
+
+    <div class="panel">
+      <h2>Summary</h2>
+      <div class="summary-grid">
+        <div class="stat-box"><div class="v" id="stat-total">0</div><div class="k">Questions</div></div>
+        <div class="stat-box"><div class="v bad" id="stat-errors">0</div><div class="k">Errors</div></div>
+        <div class="stat-box"><div class="v warn" id="stat-warnings">0</div><div class="k">Warnings</div></div>
+        <div class="stat-box"><div class="v info" id="stat-info">0</div><div class="k">Info</div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Checks <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;">(errors first)</span></h2>
+      <div id="issue-groups"></div>
+    </div>
+
+    <div class="row">
+      <button class="btn-secondary" id="copy-report-btn">Copy Text</button>
+      <button class="btn-secondary" id="download-txt-btn">Download .txt</button>
+      <button class="btn-secondary" id="download-csv-btn">Download .csv</button>
+      <button class="btn-secondary" id="download-html-btn">Download .html</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const CHECK_DEFS = [
+  { key: "brokenStructure", label: "Broken / malformed entries", severity: "error",
+    desc: "Items that aren't valid objects, or are missing required fields entirely." },
+  { key: "emptyFields", label: "Empty required fields", severity: "error",
+    desc: "Question, answer, subject, topic, difficulty, or any option (A–D) left blank." },
+  { key: "invalidAnswerKey", label: "Invalid or missing correct answer", severity: "error",
+    desc: "The \"answer\" field must be A, B, C, or D, and that key must exist in \"options\"." },
+  { key: "duplicateOptions", label: "Duplicate options within a question", severity: "error",
+    desc: "Two or more options in the same question have identical text." },
+  { key: "ambiguousAnswer", label: "Ambiguous correct answer (multiple correct)", severity: "error",
+    desc: "The correct option's text is duplicated in another option, so more than one option would be technically correct." },
+  { key: "duplicateSubjectId", label: "Duplicate ID within a subject", severity: "error",
+    desc: "Two questions share the same subject + id pair." },
+  { key: "invalidDifficulty", label: "Difficulty outside Easy/Medium/Hard", severity: "warning",
+    desc: "The difficulty field must be exactly \"Easy\", \"Medium\", or \"Hard\" (case-sensitive)." },
+  { key: "unknownSubject", label: "Unknown subject name", severity: "warning",
+    desc: "Subject isn't in your whitelist above — often a typo (e.g. \"Economic\" vs \"Economics\")." },
+  { key: "passageMismatch", label: "Passage reference mismatch", severity: "warning",
+    desc: "passage_id is set but passage_text is empty, or vice versa." },
+  { key: "missingExplanation", label: "Missing explanation", severity: "warning",
+    desc: "No explanation text provided for the correct answer." },
+  { key: "duplicateExact", label: "Exact duplicate questions", severity: "warning",
+    desc: "Same question text (ignoring case/spacing) appears more than once in the same subject. Downgraded to Info when both copies share a passage_id or an ignore keyword." },
+  { key: "duplicateSimilar", label: "Very similar questions", severity: "warning",
+    desc: "Questions in the same subject whose wording overlaps heavily (≥80% word overlap). Downgraded to Info when both copies share a passage_id or an ignore keyword — e.g. a cloze gap-fill series." }
+];
+const SEVERITY_ORDER = { error: 0, warning: 1, info: 2 };
+const SEVERITY_LABEL = { error: "Error", warning: "Warning", info: "Info" };
+
+function normalize(str) {
+  return (str || "").toString().trim().toLowerCase().replace(/\s+/g, " ");
+}
+function stripPunct(str) {
+  return normalize(str).replace(/[^\w\s]/g, "");
+}
+function wordSet(str) {
+  return new Set(stripPunct(str).split(" ").filter(Boolean));
+}
+function jaccard(setA, setB) {
+  if (setA.size === 0 && setB.size === 0) return 1;
+  let intersection = 0;
+  setA.forEach(w => { if (setB.has(w)) intersection++; });
+  const union = setA.size + setB.size - intersection;
+  return union === 0 ? 0 : intersection / union;
+}
+function snippet(text, len = 90) {
+  const t = (text || "").toString().trim();
+  return t.length > len ? t.slice(0, len) + "…" : t;
+}
+function tagSet(tags) {
+  return (tags || "").toString().toLowerCase().split(/[,;]/).map(t => t.trim()).filter(Boolean);
+}
+function sharesIgnoreKeyword(tagsA, tagsB, ignoreKeywords) {
+  if (!ignoreKeywords.length) return false;
+  const setA = tagSet(tagsA), setB = tagSet(tagsB);
+  return ignoreKeywords.some(kw => setA.some(t => t.includes(kw)) && setB.some(t => t.includes(kw)));
+}
+function isIntentionalDuplicate(entryA, entryB, ignoreKeywords) {
+  const pidA = normalize(entryA.q.passage_id);
+  const pidB = normalize(entryB.q.passage_id);
+  if (pidA && pidB && pidA === pidB) return true;
+  if (sharesIgnoreKeyword(entryA.q.tags, entryB.q.tags, ignoreKeywords)) return true;
+  return false;
+}
+
+/* ---------------- CSV parsing ---------------- */
+function parseCSVText(text) {
+  const rows = [];
+  let row = [], field = "", inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i], next = text[i + 1];
+    if (inQuotes) {
+      if (c === '"' && next === '"') { field += '"'; i++; }
+      else if (c === '"') { inQuotes = false; }
+      else { field += c; }
+    } else {
+      if (c === '"') inQuotes = true;
+      else if (c === ",") { row.push(field); field = ""; }
+      else if (c === "\n" || c === "\r") {
+        if (c === "\r" && next === "\n") i++;
+        row.push(field); field = "";
+        if (row.length > 1 || row[0] !== "") rows.push(row);
+        row = [];
+      } else field += c;
+    }
+  }
+  if (field !== "" || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+const CSV_HEADER_ALIASES = {
+  id: "id", subject: "subject", topic: "topic", question: "question",
+  optiona: "A", optionb: "B", optionc: "C", optiond: "D",
+  a: "A", b: "B", c: "C", d: "D",
+  answer: "answer", correctanswer: "answer",
+  explanation: "explanation", difficulty: "difficulty",
+  tags: "tags", passageid: "passage_id", passagetext: "passage_text"
+};
+function parseCSV(text) {
+  const rows = parseCSVText(text.trim());
+  if (!rows.length) return [];
+  const headerRow = rows[0].map(h => h.trim().toLowerCase().replace(/[^a-z0-9]/g, ""));
+  const questions = [];
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r];
+    if (row.every(c => c.trim() === "")) continue;
+    const q = { options: {} };
+    headerRow.forEach((h, i) => {
+      const mapped = CSV_HEADER_ALIASES[h];
+      if (!mapped) return;
+      const val = row[i] !== undefined ? row[i].trim() : "";
+      if (["A", "B", "C", "D"].includes(mapped)) q.options[mapped] = val;
+      else q[mapped] = val;
+    });
+    if (q.id !== undefined && q.id !== "" && !isNaN(Number(q.id))) q.id = Number(q.id);
+    questions.push(q);
+  }
+  return questions;
+}
+
+/* ---------------- Core validation ---------------- */
+function validate(questions, whitelist, ignoreKeywords) {
+  const issues = {};
+  CHECK_DEFS.forEach(c => { issues[c.key] = []; });
+
+  const bySubject = {};
+  const validEntries = [];
+
+  questions.forEach((q, index) => {
+    if (!q || typeof q !== "object" || Array.isArray(q)) {
+      issues.brokenStructure.push({
+        loc: `Index ${index}`,
+        snippet: "(not a valid object)",
+        detail: "This entry is not a JSON object and was skipped for all other checks."
+      });
+      return;
+    }
+    const subject = q.subject;
+    const topic = q.topic;
+    bySubject[subject] = (bySubject[subject] || 0) + 1;
+    validEntries.push({ q, index, subject, topic });
+
+    const loc = `${subject || "(no subject)"} — ${topic || "(no topic)"} — id ${q.id ?? "?"} (index ${index})`;
+    const qSnippet = snippet(q.question);
+
+    const requiredStrings = ["subject", "topic", "question", "answer", "difficulty"];
+    const missing = requiredStrings.filter(f => !normalize(q[f]));
+    const opts = q.options || {};
+    ["A", "B", "C", "D"].forEach(k => {
+      if (!normalize(opts[k])) missing.push(`option ${k}`);
+    });
+    if (missing.length) {
+      issues.emptyFields.push({ loc, snippet: qSnippet, detail: `Missing/empty: ${missing.join(", ")}` });
+    }
+
+    if (q.difficulty && !["Easy", "Medium", "Hard"].includes(q.difficulty)) {
+      issues.invalidDifficulty.push({ loc, snippet: qSnippet, detail: `Found "${q.difficulty}"` });
+    }
+
+    if (whitelist.length && subject && !whitelist.includes(subject)) {
+      issues.unknownSubject.push({ loc, snippet: qSnippet, detail: `"${subject}" is not in the whitelist` });
+    }
+
+    const validKeys = ["A", "B", "C", "D"];
+    if (!validKeys.includes(q.answer) || !(q.answer in opts) || !normalize(opts[q.answer])) {
+      issues.invalidAnswerKey.push({ loc, snippet: qSnippet, detail: `answer = "${q.answer}"` });
+    }
+
+    const seenOpts = {};
+    const dupeOptLabels = [];
+    validKeys.forEach(k => {
+      const val = normalize(opts[k]);
+      if (!val) return;
+      if (seenOpts[val]) dupeOptLabels.push(`${seenOpts[val]} = ${k}`);
+      else seenOpts[val] = k;
+    });
+    if (dupeOptLabels.length) {
+      issues.duplicateOptions.push({ loc, snippet: qSnippet, detail: `Identical option text: ${dupeOptLabels.join(", ")}` });
+    }
+
+    if (validKeys.includes(q.answer)) {
+      const correctText = normalize(opts[q.answer]);
+      if (correctText) {
+        const matches = validKeys.filter(k => k !== q.answer && normalize(opts[k]) === correctText);
+        if (matches.length) {
+          issues.ambiguousAnswer.push({ loc, snippet: qSnippet, detail: `Option ${matches.join(", ")} duplicates the correct answer's text` });
+        }
+      }
+    }
+
+    const hasPassageId = normalize(q.passage_id);
+    const hasPassageText = normalize(q.passage_text);
+    if ((hasPassageId && !hasPassageText) || (!hasPassageId && hasPassageText)) {
+      issues.passageMismatch.push({
+        loc, snippet: qSnippet,
+        detail: hasPassageId ? "passage_id set but passage_text is empty" : "passage_text set but passage_id is empty"
+      });
+    }
+
+    if (!normalize(q.explanation)) {
+      issues.missingExplanation.push({ loc, snippet: qSnippet, detail: "No explanation provided" });
+    }
+  });
+
+  const subjectIdMap = {};
+  validEntries.forEach(({ q, index, subject }) => {
+    if (q.id === undefined || q.id === null || !subject) return;
+    const key = subject + "::" + q.id;
+    if (!subjectIdMap[key]) subjectIdMap[key] = [];
+    subjectIdMap[key].push(index);
+  });
+  Object.entries(subjectIdMap).forEach(([key, indices]) => {
+    if (indices.length > 1) {
+      const [subject, id] = key.split("::");
+      issues.duplicateSubjectId.push({
+        loc: `${subject} — id ${id}`,
+        snippet: `Used by ${indices.length} questions`,
+        detail: `Indices: ${indices.join(", ")}`
+      });
+    }
+  });
+
+  const groups = {};
+  validEntries.forEach(entry => {
+    const s = entry.subject || "(no subject)";
+    if (!groups[s]) groups[s] = [];
+    groups[s].push(entry);
+  });
+
+  Object.entries(groups).forEach(([subject, entries]) => {
+    const exactMap = {};
+    entries.forEach(entry => {
+      const norm = normalize(entry.q.question);
+      if (!norm) return;
+      if (!exactMap[norm]) exactMap[norm] = [];
+      exactMap[norm].push(entry);
+    });
+    Object.values(exactMap).forEach(group => {
+      if (group.length > 1) {
+        for (let i = 1; i < group.length; i++) {
+          const intentional = isIntentionalDuplicate(group[0], group[i], ignoreKeywords);
+          issues.duplicateExact.push({
+            loc: `${subject} — indices ${group[0].index} & ${group[i].index}`,
+            snippet: snippet(group[0].q.question),
+            detail: intentional
+              ? "Identical text — matches an expected duplicate (shared passage_id or ignore keyword)"
+              : `Identical text also used at index ${group[i].index}`,
+            severity: intentional ? "info" : undefined
+          });
+        }
+      }
+    });
+
+    if (entries.length > 800) {
+      issues.duplicateSimilar.push({
+        loc: subject,
+        snippet: "(skipped)",
+        detail: `${entries.length} questions in this subject — similarity check skipped to keep the tool responsive. Run this subject alone if you need this check.`
+      });
+      return;
+    }
+    const withSets = entries.map(e => ({ e, set: wordSet(e.q.question) }));
+    const flagged = new Set();
+    for (let i = 0; i < withSets.length; i++) {
+      for (let j = i + 1; j < withSets.length; j++) {
+        const a = withSets[i], b = withSets[j];
+        if (normalize(a.e.q.question) === normalize(b.e.q.question)) continue;
+        const sim = jaccard(a.set, b.set);
+        if (sim >= 0.8) {
+          const pairKey = a.e.index + "-" + b.e.index;
+          if (!flagged.has(pairKey)) {
+            flagged.add(pairKey);
+            const intentional = isIntentionalDuplicate(a.e, b.e, ignoreKeywords);
+            issues.duplicateSimilar.push({
+              loc: `${subject} — indices ${a.e.index} & ${b.e.index}`,
+              snippet: snippet(a.e.q.question),
+              detail: (intentional ? "Expected duplicate (shared passage_id or ignore keyword). " : "") +
+                      `${Math.round(sim * 100)}% word overlap with: "${snippet(b.e.q.question, 70)}"`,
+              severity: intentional ? "info" : undefined
+            });
+          }
+        }
+      }
+    }
+  });
+
+  return { issues, bySubject, total: questions.length };
+}
+
+function effectiveSeverity(def, item) {
+  return item.severity || def.severity;
+}
+
+function computeSummary(result) {
+  let errors = 0, warnings = 0, info = 0;
+  CHECK_DEFS.forEach(def => {
+    result.issues[def.key].forEach(item => {
+      const sev = effectiveSeverity(def, item);
+      if (sev === "error") errors++;
+      else if (sev === "warning") warnings++;
+      else info++;
+    });
+  });
+  const total = result.total || 1;
+  let score = ((total - errors) / total * 100) - (warnings * 0.02);
+  score = Math.max(0, Math.min(100, score));
+  return { errors, warnings, info, qualityScore: Math.round(score * 10) / 10 };
+}
+
+function renderResults(result) {
+  document.getElementById("results").classList.remove("hidden");
+  const summary = computeSummary(result);
+
+  document.getElementById("stat-total").textContent = result.total;
+  document.getElementById("stat-errors").textContent = summary.errors;
+  document.getElementById("stat-warnings").textContent = summary.warnings;
+  document.getElementById("stat-info").textContent = summary.info;
+
+  const scoreEl = document.getElementById("quality-score");
+  scoreEl.textContent = summary.qualityScore + "%";
+  scoreEl.className = "score " + (summary.qualityScore >= 95 ? "good" : summary.qualityScore >= 85 ? "mid" : "bad");
+
+  const container = document.getElementById("issue-groups");
+  container.innerHTML = "";
+
+  const sortedDefs = CHECK_DEFS.slice().sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
+
+  sortedDefs.forEach(def => {
+    const items = result.issues[def.key];
+    const group = document.createElement("div");
+    group.className = "issue-group";
+
+    const head = document.createElement("div");
+    head.className = "issue-head";
+    head.innerHTML = `
+      <div class="label-wrap">
+        <span class="sev-dot ${def.severity}"></span>
+        <span>${def.label}</span>
+      </div>
+      <span class="count ${items.length ? "nonzero" : "zero"}">${items.length}</span>
+      <span class="caret">▶</span>
+    `;
+
+    const body = document.createElement("div");
+    body.className = "issue-body";
+    const descEl = document.createElement("p");
+    descEl.className = "issue-desc";
+    descEl.textContent = def.desc;
+    body.appendChild(descEl);
+
+    if (items.length === 0) {
+      const ok = document.createElement("div");
+      ok.className = "empty-state";
+      ok.textContent = "✓ No issues found";
+      body.appendChild(ok);
+    } else {
+      items.slice(0, 200).forEach(item => {
+        const sev = effectiveSeverity(def, item);
+        const el = document.createElement("div");
+        el.className = "issue-item";
+        el.innerHTML = `
+          <div class="loc"><span class="sev-dot ${sev}"></span>${item.loc}</div>
+          <div class="snippet">${item.snippet ? escapeHtml(item.snippet) : ""}</div>
+          <div class="detail">${escapeHtml(item.detail)}</div>
+        `;
+        body.appendChild(el);
+      });
+      if (items.length > 200) {
+        const more = document.createElement("div");
+        more.className = "issue-item detail";
+        more.textContent = `…and ${items.length - 200} more`;
+        body.appendChild(more);
+      }
+    }
+
+    head.addEventListener("click", () => {
+      head.classList.toggle("open");
+      body.classList.toggle("open");
+    });
+
+    group.appendChild(head);
+    group.appendChild(body);
+    container.appendChild(group);
+  });
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function flattenIssues(result) {
+  const rows = [];
+  CHECK_DEFS.forEach(def => {
+    result.issues[def.key].forEach(item => {
+      rows.push({ severity: effectiveSeverity(def, item), check: def.label, loc: item.loc, snippet: item.snippet || "", detail: item.detail });
+    });
+  });
+  rows.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
+  return rows;
+}
+
+function buildTextReport(result) {
+  const summary = computeSummary(result);
+  let lines = [];
+  lines.push(`ExamWiseNG Question Bank Validation Report`);
+  lines.push(`Generated: ${new Date().toISOString()}`);
+  lines.push(`Total questions: ${result.total}`);
+  lines.push(`Subjects: ${Object.entries(result.bySubject).map(([s, c]) => `${s} (${c})`).join(", ")}`);
+  lines.push(`Quality Score: ${summary.qualityScore}%  |  Errors: ${summary.errors}  Warnings: ${summary.warnings}  Info: ${summary.info}`);
+  lines.push("");
+  CHECK_DEFS.forEach(def => {
+    const items = result.issues[def.key];
+    lines.push(`--- [${SEVERITY_LABEL[def.severity]}] ${def.label} (${items.length}) ---`);
+    if (items.length === 0) lines.push("No issues found.");
+    else items.forEach(item => {
+      lines.push(`[${SEVERITY_LABEL[effectiveSeverity(def, item)]}] [${item.loc}] ${item.snippet} :: ${item.detail}`);
+    });
+    lines.push("");
+  });
+  return lines.join("\n");
+}
+
+function csvEscape(val) {
+  const s = (val === undefined || val === null) ? "" : String(val);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function buildCSVReport(result) {
+  const rows = flattenIssues(result);
+  const header = ["Severity", "Check", "Location", "Snippet", "Detail"];
+  const lines = [header.join(",")];
+  rows.forEach(r => {
+    lines.push([r.severity, r.check, r.loc, r.snippet, r.detail].map(csvEscape).join(","));
+  });
+  return lines.join("\n");
+}
+
+function buildHTMLReport(result) {
+  const summary = computeSummary(result);
+  const rows = flattenIssues(result);
+  const rowsHtml = rows.map(r => `
+    <tr class="sev-${r.severity}">
+      <td>${escapeHtml(SEVERITY_LABEL[r.severity])}</td>
+      <td>${escapeHtml(r.check)}</td>
+      <td>${escapeHtml(r.loc)}</td>
+      <td>${escapeHtml(r.snippet)}</td>
+      <td>${escapeHtml(r.detail)}</td>
+    </tr>`).join("");
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Question Bank Validation Report</title>
+  <style>
+    body{font-family:Arial,sans-serif;background:#0d1117;color:#e8ecf1;padding:24px;}
+    h1{color:#d9a441;} .meta{color:#8b96a5;margin-bottom:20px;}
+    table{width:100%;border-collapse:collapse;font-size:13px;}
+    th,td{border:1px solid #2a3441;padding:8px;text-align:left;vertical-align:top;}
+    th{background:#1c2330;color:#d9a441;}
+    tr.sev-error td:first-child{color:#d9534f;font-weight:bold;}
+    tr.sev-warning td:first-child{color:#e0a83e;font-weight:bold;}
+    tr.sev-info td:first-child{color:#4a90d9;font-weight:bold;}
+  </style></head><body>
+  <h1>Question Bank Validation Report</h1>
+  <p class="meta">Generated ${new Date().toISOString()}<br>
+  Total questions: ${result.total} | Quality Score: ${summary.qualityScore}% |
+  Errors: ${summary.errors} · Warnings: ${summary.warnings} · Info: ${summary.info}</p>
+  <table><thead><tr><th>Severity</th><th>Check</th><th>Location</th><th>Snippet</th><th>Detail</th></tr></thead>
+  <tbody>${rowsHtml || '<tr><td colspan="5">No issues found.</td></tr>'}</tbody></table>
+  </body></html>`;
+}
+
+function downloadFile(filename, content, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+let lastResult = null;
+let inputFormat = "json";
+
+document.getElementById("format-json").addEventListener("click", () => {
+  inputFormat = "json";
+  document.getElementById("format-json").classList.add("active");
+  document.getElementById("format-csv").classList.remove("active");
+  document.getElementById("input-label").textContent = "JSON array";
+  document.getElementById("input-hint").textContent = "Paste the QUESTIONS array (or any array of question objects in this shape). Or upload a file below — it will fill the box above.";
+});
+document.getElementById("format-csv").addEventListener("click", () => {
+  inputFormat = "csv";
+  document.getElementById("format-json").classList.remove("active");
+  document.getElementById("format-csv").classList.add("active");
+  document.getElementById("input-label").textContent = "CSV (with header row)";
+  document.getElementById("input-hint").textContent = "Header row required. Recognized columns: id, subject, topic, question, optionA/optionB/optionC/optionD (or just A/B/C/D), answer, explanation, difficulty, tags, passage_id, passage_text.";
+});
+
+document.getElementById("file-input").addEventListener("change", () => {
+  const file = document.getElementById("file-input").files[0];
+  if (!file) return;
+  if (file.name.toLowerCase().endsWith(".csv")) {
+    document.getElementById("format-csv").click();
+  } else {
+    document.getElementById("format-json").click();
+  }
+  const reader = new FileReader();
+  reader.onload = () => { document.getElementById("json-input").value = reader.result; };
+  reader.readAsText(file);
+});
+
+document.getElementById("validate-btn").addEventListener("click", () => {
+  const errorOutput = document.getElementById("error-output");
+  errorOutput.innerHTML = "";
+  document.getElementById("results").classList.add("hidden");
+
+  const raw = document.getElementById("json-input").value.trim();
+  if (!raw) {
+    errorOutput.innerHTML = `<div class="error-box">Paste or upload questions first.</div>`;
+    return;
+  }
+
+  let parsed;
+  if (inputFormat === "csv") {
+    try {
+      parsed = parseCSV(raw);
+    } catch (e) {
+      errorOutput.innerHTML = `<div class="error-box">Could not parse CSV.\n\n${escapeHtml(e.message)}</div>`;
+      return;
+    }
+    if (!parsed.length) {
+      errorOutput.innerHTML = `<div class="error-box">No data rows found. Make sure the first row is a header row.</div>`;
+      return;
+    }
+  } else {
+    try {
+      parsed = JSON.parse(raw);
+    } catch (e) {
+      errorOutput.innerHTML = `<div class="error-box">Broken JSON — could not parse the input.\n\n${escapeHtml(e.message)}</div>`;
+      return;
+    }
+    if (!Array.isArray(parsed)) {
+      errorOutput.innerHTML = `<div class="error-box">Expected a JSON array of question objects at the top level, but got: ${typeof parsed}.</div>`;
+      return;
+    }
+  }
+
+  const whitelist = document.getElementById("subjects-input").value.split(",").map(s => s.trim()).filter(Boolean);
+  const ignoreKeywords = document.getElementById("ignore-input").value.split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+
+  lastResult = validate(parsed, whitelist, ignoreKeywords);
+  renderResults(lastResult);
+});
+
+document.getElementById("copy-report-btn").addEventListener("click", async () => {
+  if (!lastResult) return;
+  const report = buildTextReport(lastResult);
+  try {
+    await navigator.clipboard.writeText(report);
+    const btn = document.getElementById("copy-report-btn");
+    const original = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(() => { btn.textContent = original; }, 1500);
+  } catch (e) {
+    alert("Could not copy automatically. Check clipboard permissions, or use one of the Download buttons instead.");
+  }
+});
+document.getElementById("download-txt-btn").addEventListener("click", () => {
+  if (!lastResult) return;
+  downloadFile(`validation-report-${Date.now()}.txt`, buildTextReport(lastResult), "text/plain");
+});
+document.getElementById("download-csv-btn").addEventListener("click", () => {
+  if (!lastResult) return;
+  downloadFile(`validation-report-${Date.now()}.csv`, buildCSVReport(lastResult), "text/csv");
+});
+document.getElementById("download-html-btn").addEventListener("click", () => {
+  if (!lastResult) return;
+  downloadFile(`validation-report-${Date.now()}.html`, buildHTMLReport(lastResult), "text/html");
+});
+</script>
+</body>
+</html>
