@@ -817,9 +817,29 @@ renderDailyMessage();
 /* ---------------- Export / Import (backup) ----------------
    Reuses the same loadStats()/saveStats() functions as everything else —
    no separate code path for reading or writing examwise_stats. */
+
+/* Small deterministic string hash (djb2) — just enough to catch accidental
+   corruption or hand-editing of a shared backup file. Not cryptographic. */
+function simpleChecksum(str) {
+  let hash = 5381;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) + hash + str.charCodeAt(i)) | 0;
+  }
+  return (hash >>> 0).toString(16);
+}
+
 document.getElementById("export-data-btn").addEventListener("click", () => {
   const stats = loadStats();
-  const json = JSON.stringify(stats, null, 2);
+  const statsJson = JSON.stringify(stats);
+  const payload = {
+    app: "ExamWiseNG",
+    schemaVersion: STATS_VERSION,
+    exportedAt: new Date().toISOString(),
+    device: "local",
+    checksum: simpleChecksum(statsJson),
+    stats
+  };
+  const json = JSON.stringify(payload, null, 2);
   const blob = new Blob([json], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -849,12 +869,39 @@ importInput.addEventListener("change", () => {
       alert("That file doesn't look like a valid ExamWiseNG backup (invalid JSON).");
       return;
     }
-    if (!parsed || typeof parsed !== "object" || !parsed.lifetime || !parsed.streak) {
+    if (!parsed || typeof parsed !== "object") {
       alert("That file doesn't look like a valid ExamWiseNG statistics backup.");
       return;
     }
-    if (!confirm("Importing will replace your current statistics on this device. Continue?")) return;
-    saveStats(withDefaults(parsed));
+
+    let statsToImport;
+    let checksumOk = true;
+
+    if (parsed.stats && typeof parsed.stats === "object") {
+      // Current export format: { app, schemaVersion, exportedAt, device, checksum, stats }
+      statsToImport = parsed.stats;
+      if (parsed.checksum) {
+        checksumOk = simpleChecksum(JSON.stringify(statsToImport)) === parsed.checksum;
+      }
+    } else if (parsed.lifetime && parsed.streak) {
+      // Backward compatibility: a raw stats object exported by an earlier app version.
+      statsToImport = parsed;
+    } else {
+      alert("That file doesn't look like a valid ExamWiseNG statistics backup.");
+      return;
+    }
+
+    if (!statsToImport.lifetime || !statsToImport.streak) {
+      alert("That file doesn't look like a valid ExamWiseNG statistics backup.");
+      return;
+    }
+
+    const confirmMsg = checksumOk
+      ? "Importing will replace your current statistics on this device. Continue?"
+      : "This backup's checksum doesn't match its contents — the file may have been edited or corrupted. Import anyway?";
+    if (!confirm(confirmMsg)) return;
+
+    saveStats(withDefaults(statsToImport));
     renderDailyMessage();
     alert("Statistics imported successfully.");
   };
